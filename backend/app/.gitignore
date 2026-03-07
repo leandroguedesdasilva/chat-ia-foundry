@@ -1,0 +1,20 @@
+# Ambientes Virtuais
+venv/
+.venv/
+
+# Caches do Python
+__pycache__/
+*.pyc
+
+# Dependências do Node.js
+node_modules/
+
+# Arquivos de Build/Distribuição
+dist/
+
+# Arquivos de Banco de Dados local
+*.db
+*.sqlite3
+
+# Arquivos de log
+*.log

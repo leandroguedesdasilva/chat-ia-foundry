@@ -1,4 +1,6 @@
-#!/home/leandro/meu-projeto-chat/backend/venv/bin/python3
+#!/bin/sh
+'''exec' "/mnt/c/Projeto Python/meu-projeto-chat/backend/venv/bin/python3" "$0" "$@"
+' '''
 # -*- coding: utf-8 -*-
 import re
 import sys
