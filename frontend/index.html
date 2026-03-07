@@ -1,0 +1,23 @@
+<!-- frontend/index.html -->
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tornado Chat</title>
+  </head>
+  <body>
+    <div id="app">
+      <h1>Chat em Tempo Real com Tornado</h1>
+      <div id="chat-box">
+        <ul id="messages"></ul>
+      </div>
+      <form id="message-form">
+        <input id="message-input" autocomplete="off" placeholder="Digite sua mensagem..." />
+        <button>Enviar</button>
+      </form>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
