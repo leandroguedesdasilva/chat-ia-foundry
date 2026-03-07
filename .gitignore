@@ -1,0 +1,8 @@
+node_modules/
+venv/
+.venv/
+__pycache__/
+dist/
+*.db
+*.sqlite3
+*.log

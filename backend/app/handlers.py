@@ -3,7 +3,8 @@ import tornado.websocket
 import tornado.web
 import os 
 import uuid 
-from app.ai_connector import get_ai_response_stream
+from app.ai_connector import get_ai_response_stream, get_ai_response_as_json 
+from app.database import adicionar_produto
 
 class ChatSocketHandler(tornado.websocket.WebSocketHandler):
     connections = set()
@@ -33,27 +34,47 @@ class ChatSocketHandler(tornado.websocket.WebSocketHandler):
        # Adiciona a pergunta ao histórico e a envia para o frontend
         self.chat_history.append(("Você", message))
         ChatSocketHandler.broadcast(f"Você: {message}")
-        
-        # --- NOVA LÓGICA DE STREAMING ---
-        # 1. Envia uma mensagem inicial para o frontend criar o "espaço" da resposta
-        # Usaremos um ID único para que o frontend saiba qual mensagem atualizar
-        #import uuid
-        message_id = str(uuid.uuid4())
-        ChatSocketHandler.broadcast(f"IA_STREAM_START:{message_id}")
 
-        full_response = ""
-        # 2. Itera sobre os pedaços recebidos do gerador
-        async for chunk in get_ai_response_stream(message):
-            # Acumula a resposta completa para o histórico
-            full_response += chunk
-            # 3. Retransmite cada pedaço para o frontend com o ID
-            ChatSocketHandler.broadcast(f"IA_STREAM_CHUNK:{message_id}:{chunk}")
-        
-        # 4. Envia uma mensagem de fim de stream
-        ChatSocketHandler.broadcast(f"IA_STREAM_END:{message_id}")
 
-        # 5. Salva a resposta completa no histórico
-        self.chat_history.append(("IA", full_response))
+        # --- LÓGICA DE ROTEAMENTO ---
+        # Se a mensagem começar com um comando específico, use a lógica de JSON
+        if message.lower().strip().startswith("cadastre"):
+            
+            # Mostra uma mensagem de "processando" para o usuário
+            ChatSocketHandler.broadcast("IA: Entendido. Processando cadastro de produto...")
+
+            # Chama a função que espera um JSON
+            dados_produto = await get_ai_response_as_json(message)
+
+            # Verifica se a IA retornou um erro
+            if "erro" in dados_produto or "produto" not in dados_produto:
+                erro_msg = dados_produto.get("erro", "Não foi possível extrair os dados do produto.")
+                ChatSocketHandler.broadcast(f"IA: Erro no cadastro. {erro_msg}")
+            else:
+                # Tenta adicionar ao banco de dados
+                if adicionar_produto(dados_produto):
+                    nome_produto = dados_produto.get('produto')
+                    ChatSocketHandler.broadcast(f"IA: Sucesso! Produto '{nome_produto}' cadastrado no banco de dados.")
+                else:
+                    ChatSocketHandler.broadcast("IA: Erro! Não foi possível salvar o produto no banco de dados.")
+        # Se for qualquer outra mensagem, usa o chat normal com streaming
+        else:
+            message_id = str(uuid.uuid4())
+            ChatSocketHandler.broadcast(f"IA_STREAM_START:{message_id}")
+
+            full_response = ""
+            # 2. Itera sobre os pedaços recebidos do gerador
+            async for chunk in get_ai_response_stream(message):
+                # Acumula a resposta completa para o histórico
+                full_response += chunk
+                # 3. Retransmite cada pedaço para o frontend com o ID
+                ChatSocketHandler.broadcast(f"IA_STREAM_CHUNK:{message_id}:{chunk}")
+            
+            # 4. Envia uma mensagem de fim de stream
+            ChatSocketHandler.broadcast(f"IA_STREAM_END:{message_id}")
+
+            # 5. Salva a resposta completa no histórico
+            self.chat_history.append(("IA", full_response))
 
     def on_close(self):
         self.connections.remove(self)

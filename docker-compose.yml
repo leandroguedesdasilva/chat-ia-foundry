@@ -1,6 +1,18 @@
-version: '3.8'
+# Copie e cole este bloco em um novo arquivo, ou apague e re-digite os espaços no seu.
 
 services:
+  db:
+    image: postgres:15-alpine
+    container_name: chat-db
+    environment:
+      - POSTGRES_USER=leandro
+      - POSTGRES_PASSWORD=123456
+      - POSTGRES_DB=chat_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
   backend:
     build: ./backend
     container_name: chat-backend
@@ -8,6 +20,12 @@ services:
       - "8888:8888"
     environment:
       - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY}
+      - DB_HOST=db
+      - DB_NAME=chat_db
+      - DB_USER=leandro
+      - DB_PASSWORD=123456
+    depends_on:
+      - db
 
   frontend:
     build: ./frontend
@@ -16,3 +34,7 @@ services:
       - "5173:80"
     depends_on:
       - backend
+
+volumes:
+  postgres_data:
+

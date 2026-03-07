@@ -3,6 +3,7 @@ import os
 from openai import AsyncAzureOpenAI
 from openai.types.chat import ChatCompletion # Importa o tipo correto para Chat
 from openai import AsyncAzureOpenAI
+import json
 
 # --- CONFIGURAÇÃO EXPLÍCITA - A PROVA DE ERROS ---
 # Copiado diretamente do seu Azure Playground
@@ -50,3 +51,65 @@ async def get_ai_response_stream(user_message: str):
     except Exception as e:
         print(f"[ERRO] Falha no stream com o Azure AI: {e}")
         yield "Desculpe, ocorreu um erro no stream com a IA."
+
+def criar_prompt_json(user_message: str) -> str:
+    """
+    Cria um prompt que instrui a IA a extrair dados e retornar JSON.
+    """
+    # O contrato JSON que esperamos
+    json_structure_example = """
+    {
+      "produto": "nome do produto",
+      "tamanho": "P, M, G, ou único",
+      "preco": 0.00,
+      "estoque": 1
+    }
+    """
+
+    # A instrução para a IA
+    system_prompt = f"""
+    Você é um assistente de processamento de dados. Sua tarefa é extrair informações de uma mensagem do usuário e retorná-las estritamente em formato JSON.
+    A estrutura JSON que você deve usar como modelo é a seguinte:
+    {json_structure_example}
+    
+    Se a mensagem do usuário não parecer um cadastro de produto, retorne um JSON com um campo "erro". Ex: {{"erro": "Não entendi a solicitação."}}
+    Analise a seguinte mensagem do usuário e extraia os dados para o formato JSON:
+    """
+    
+    # Retorna o prompt completo
+    return f"{system_prompt}\n\nMensagem do usuário: '{user_message}'"
+
+
+async def get_ai_response_as_json(user_message: str) -> dict:
+    """
+    Envia um prompt para a IA esperando uma resposta JSON e a retorna como um dicionário Python.
+    """
+    # Cria o prompt especializado
+    prompt = criar_prompt_json(user_message)
+    
+    try:
+        print(f"Enviando prompt JSON para a IA...")
+        
+        response = await client.chat.completions.create(
+            model=AZURE_DEPLOYMENT_NAME,
+            messages=[
+                {"role": "user", "content": prompt}
+            ],
+            max_completion_tokens=200,
+            # Podemos adicionar um 'response_format' se a API suportar
+            # response_format={"type": "json_object"} 
+        )
+        
+        json_string = response.choices[0].message.content.strip()
+        print(f"IA retornou a string JSON: {json_string}")
+        
+        # Faz o parse da string JSON para um dicionário Python
+        dados = json.loads(json_string)
+        return dados
+
+    except json.JSONDecodeError:
+        print("[ERRO] A IA não retornou um JSON válido.")
+        return {"erro": "A IA não retornou um JSON válido."}
+    except Exception as e:
+        print(f"[ERRO] Falha na comunicação com o Azure AI: {e}")
+        return {"erro": "Falha ao comunicar com a IA."}

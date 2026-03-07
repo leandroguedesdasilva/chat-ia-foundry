@@ -1,24 +1,22 @@
-# backend/app/server.py
 import tornado.ioloop
 import tornado.web
-# Importe ambos os handlers agora
 from app.handlers import MainHandler, ChatSocketHandler
+# from app.database import inicializar_db
 
 def make_app():
     """
-    Cria e retorna a aplicação Tornado, associando rotas aos handlers.
+    Cria e configura a aplicação Tornado.
     """
+    # inicializar_db()
     return tornado.web.Application([
-        (r"/", MainHandler),  # A rota raiz ainda mostra a página de status
-        (r"/websocket", ChatSocketHandler), # Nova rota para a conexão WebSocket
+        (r"/", MainHandler),
+        (r"/websocket", ChatSocketHandler),
     ])
 
 if __name__ == "__main__":
     app = make_app()
-    port = 8888
-    app.listen(port)
-    print(f"Servidor Tornado iniciado na porta {port}")
-    print(f"HTTP em http://localhost:{port}" )
-    print(f"WebSocket em ws://localhost:{port}/websocket")
-    
+    app.listen(8888)
+    print("Servidor Tornado iniciado na porta 8888")
+    print("HTTP em http://localhost:8888" )
+    print("WebSocket em ws://localhost:8888/websocket")
     tornado.ioloop.IOLoop.current().start()
