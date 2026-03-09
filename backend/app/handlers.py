@@ -1,10 +1,15 @@
 # backend/app/handlers.py
+from email.mime import message
+
 import tornado.websocket
 import tornado.web
 import os 
 import uuid 
+import json
 from app.ai_connector import get_ai_response_stream, get_ai_response_as_json 
-from app.database import adicionar_produto
+from app.repositories import product_repository
+
+
 
 class ChatSocketHandler(tornado.websocket.WebSocketHandler):
     connections = set()
@@ -21,7 +26,8 @@ class ChatSocketHandler(tornado.websocket.WebSocketHandler):
         Chamado quando o servidor recebe uma mensagem.
         Agora, vamos distribuir (broadcast) essa mensagem para todos.
         """
-        print(f"Mensagem recebida: {message}")
+        print(f"--- HANDLER: MENSAGEM BRUTA RECEBIDA: '{message}' ---", flush=True)
+        print(f"Mensagem recebida: {message}", flush=True)
 
         # ETAPA 1: VERIFICAR SE É UM COMANDO
         if message.strip() == "/criar_documento":
@@ -39,24 +45,42 @@ class ChatSocketHandler(tornado.websocket.WebSocketHandler):
         # --- LÓGICA DE ROTEAMENTO ---
         # Se a mensagem começar com um comando específico, use a lógica de JSON
         if message.lower().strip().startswith("cadastre"):
-            
-            # Mostra uma mensagem de "processando" para o usuário
+            print("--- HANDLER: Processando comando de cadastro ---", flush=True)
             ChatSocketHandler.broadcast("IA: Entendido. Processando cadastro de produto...")
+    
+            try:
+                # PASSO 1: Chama a função que JÁ retorna um dicionário
+                dados_dict = await get_ai_response_as_json(message)
+                print(f"--- HANDLER: Resposta da IA (já como dict): {dados_dict} ---", flush=True)
 
-            # Chama a função que espera um JSON
-            dados_produto = await get_ai_response_as_json(message)
-
-            # Verifica se a IA retornou um erro
-            if "erro" in dados_produto or "produto" not in dados_produto:
-                erro_msg = dados_produto.get("erro", "Não foi possível extrair os dados do produto.")
-                ChatSocketHandler.broadcast(f"IA: Erro no cadastro. {erro_msg}")
-            else:
-                # Tenta adicionar ao banco de dados
-                if adicionar_produto(dados_produto):
-                    nome_produto = dados_produto.get('produto')
-                    ChatSocketHandler.broadcast(f"IA: Sucesso! Produto '{nome_produto}' cadastrado no banco de dados.")
+                # PASSO 2: Verifica se a IA retornou um erro LÓGICO
+                if "erro" in dados_dict or "produto" not in dados_dict:
+                    erro_msg = dados_dict.get("erro", "Não foi possível extrair os dados do produto.")
+                    ChatSocketHandler.broadcast(f"IA: Erro no cadastro. {erro_msg}")
                 else:
-                    ChatSocketHandler.broadcast("IA: Erro! Não foi possível salvar o produto no banco de dados.")
+                    # PASSO 3: Tenta salvar no banco de dados
+                    nome_produto = dados_dict['produto'] 
+                    tamanho = dados_dict.get('tamanho', 'único')
+                    preco = float(dados_dict['preco'])
+                    estoque = int(dados_dict.get('estoque', 1))
+
+                    product_repository.adicionar(
+                        nome=nome_produto,
+                        tamanho=tamanho,
+                        preco=preco,
+                        estoque=estoque
+                    )
+                    
+                    ChatSocketHandler.broadcast(f"IA: Sucesso! Produto '{nome_produto}' cadastrado no banco de dados.")
+            except (ValueError, TypeError, KeyError) as e:
+                # Captura erros de conversão de tipo ou chave faltando
+                print(f"--- HANDLER: ERRO de dados ou tipo: {e} ---", flush=True)
+                ChatSocketHandler.broadcast("IA: Erro! Os dados retornados pela IA estão incompletos ou em formato inesperado.")
+            except Exception as e:
+                # Captura TODOS os outros erros, incluindo falhas na chamada da IA
+                print(f"--- HANDLER: ERRO genérico: {e} ---", flush=True)
+                ChatSocketHandler.broadcast("IA: Erro! Não foi possível processar o seu pedido.")
+            return
         # Se for qualquer outra mensagem, usa o chat normal com streaming
         else:
             message_id = str(uuid.uuid4())
