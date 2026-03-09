@@ -1,5 +1,3 @@
-# Copie e cole este bloco em um novo arquivo, ou apague e re-digite os espaços no seu.
-
 services:
   db:
     image: postgres:15-alpine
