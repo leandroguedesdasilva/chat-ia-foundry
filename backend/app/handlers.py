@@ -5,9 +5,8 @@ import tornado.websocket
 import tornado.web
 import os 
 import uuid 
-import json
 from app.ai_connector import get_ai_response_stream, get_ai_response_as_json 
-from app.repositories import product_repository
+#from app.repositories import product_repository # comentado para a implementação do DI, mas mantido para referência futura
 
 
 
@@ -15,6 +14,14 @@ class ChatSocketHandler(tornado.websocket.WebSocketHandler):
     connections = set()
     # Lista para armazenar o histórico da conversa (tuplas de 'remetente', 'mensagem')
     chat_history = []
+
+    def initialize(self, repository):
+        """
+        Este método é chamado pelo Tornado quando o handler é criado.
+        Ele "injeta" a dependência.
+        """
+        print("--- HANDLER: Injetando dependência do repositório ---")
+        self.repository = repository
 
     def open(self):
         self.connections.add(self)
@@ -64,7 +71,7 @@ class ChatSocketHandler(tornado.websocket.WebSocketHandler):
                     preco = float(dados_dict['preco'])
                     estoque = int(dados_dict.get('estoque', 1))
 
-                    product_repository.adicionar(
+                    self.repository.adicionar(
                         nome=nome_produto,
                         tamanho=tamanho,
                         preco=preco,

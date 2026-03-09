@@ -56,4 +56,4 @@ class ProductRepository:
             db_pool.putconn(conn)
 
 # Criamos uma instância única do repositório que será usada em toda a aplicação (Padrão Singleton)
-product_repository = ProductRepository()
+#product_repository = ProductRepository() COMENTADO PARA IMPLEMENTAÇÃO DO DI
