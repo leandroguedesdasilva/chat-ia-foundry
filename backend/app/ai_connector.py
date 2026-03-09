@@ -84,7 +84,6 @@ async def get_ai_response_as_json(user_message: str) -> dict:
     """
     Envia um prompt para a IA esperando uma resposta JSON e a retorna como um dicionário Python.
     """
-    # Cria o prompt especializado
     prompt = criar_prompt_json(user_message)
     
     try:
@@ -95,15 +94,23 @@ async def get_ai_response_as_json(user_message: str) -> dict:
             messages=[
                 {"role": "user", "content": prompt}
             ],
-            max_completion_tokens=200,
-            # Podemos adicionar um 'response_format' se a API suportar
-            # response_format={"type": "json_object"} 
+            max_completion_tokens=500,
         )
         
-        json_string = response.choices[0].message.content.strip()
+        # Log do motivo de parada: 'stop'. 'length' significa que foi cortado.
+        motivo_parada = response.choices[0].finish_reason
+        print(f"IA finalizou com motivo: '{motivo_parada}'")
+
+        conteudo = response.choices[0].message.content
+
+        # Proteção contra resposta vazia ou None
+        if not conteudo or not conteudo.strip():
+            print("[ERRO] A IA retornou uma resposta vazia.")
+            return {"erro": "A IA retornou uma resposta vazia."}
+
+        json_string = conteudo.strip()
         print(f"IA retornou a string JSON: {json_string}")
         
-        # Faz o parse da string JSON para um dicionário Python
         dados = json.loads(json_string)
         return dados
 
